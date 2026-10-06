@@ -1,0 +1,703 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Amul Billing</title>
+<style>
+  :root {
+    --bg: #f4f6f9; --card: #fff; --ink: #1d2433; --muted: #667085; --line: #dde2ea;
+    --brand: #c8102e; --brand-ink: #fff; --accent: #0b5cad; --ok: #12805c; --warn: #b54708;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", sans-serif; }
+  header { background: var(--brand); color: var(--brand-ink); padding: 10px 16px; display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; }
+  header h1 { font-size: 18px; margin: 0; flex: 1 1 auto; }
+  nav { display: flex; gap: 4px; flex-wrap: wrap; }
+  nav button { background: transparent; color: #fff; border: 1px solid rgba(255,255,255,.5); padding: 6px 12px; border-radius: 6px; cursor: pointer; font: inherit; }
+  nav button.active { background: #fff; color: var(--brand); font-weight: 600; }
+  main { max-width: 1200px; margin: 0 auto; padding: 16px; }
+  .tab { display: none; } .tab.active { display: block; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; margin-bottom: 14px; }
+  .card h2 { font-size: 15px; margin: 0 0 10px; }
+  .grid { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+  label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 3px; }
+  input, select, textarea { width: 100%; padding: 7px 9px; border: 1px solid var(--line); border-radius: 6px; font: inherit; background: #fff; color: var(--ink); }
+  input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  input.num { text-align: right; }
+  .btn { display: inline-block; padding: 8px 14px; border-radius: 6px; border: 1px solid var(--line); background: #fff; color: var(--ink); cursor: pointer; font: inherit; }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+  .btn.green { background: var(--ok); border-color: var(--ok); color: #fff; font-weight: 600; }
+  .btn.danger { color: var(--brand); border-color: #f1b5bf; }
+  .btn.sm { padding: 4px 8px; font-size: 12px; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .spacer { flex: 1; }
+  .muted { color: var(--muted); font-size: 12px; }
+  .scroll { overflow-x: auto; }
+  table.t { width: 100%; border-collapse: collapse; }
+  table.t th, table.t td { padding: 6px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: middle; }
+  table.t th { font-size: 12px; color: var(--muted); font-weight: 600; white-space: nowrap; background: #f8fafc; }
+  table.t td.r, table.t th.r { text-align: right; }
+  table.t input { padding: 5px 6px; }
+  table.t input.q { width: 64px; } table.t input.pd { width: 74px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; max-height: 210px; overflow-y: auto; margin-top: 8px; }
+  .chip { border: 1px solid var(--line); background: #f8fafc; border-radius: 16px; padding: 5px 11px; cursor: pointer; font: inherit; font-size: 13px; color: var(--ink); text-align: left; }
+  .chip:hover { border-color: var(--accent); }
+  .chip.in { background: #e6f0fb; border-color: var(--accent); }
+  .chip small { color: var(--muted); }
+  .totals { display: grid; grid-template-columns: 1fr auto; gap: 4px 20px; max-width: 380px; margin-left: auto; }
+  .totals .grand { font-size: 20px; font-weight: 700; color: var(--brand); border-top: 2px solid var(--ink); padding-top: 6px; }
+  .words { text-align: right; font-style: italic; color: var(--muted); margin-top: 6px; }
+  .empty { text-align: center; color: var(--muted); padding: 18px; }
+  .toast { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); background: #1d2433; color: #fff; padding: 10px 16px; border-radius: 8px; display: none; z-index: 50; }
+  .modal { position: fixed; inset: 0; background: rgba(0,0,0,.55); display: none; z-index: 40; overflow: auto; padding: 16px; }
+  .modal.open { display: block; }
+  .modal .bar { max-width: 820px; margin: 0 auto 10px; display: flex; gap: 8px; flex-wrap: wrap; }
+  .modal .paper { background: #fff; max-width: 820px; margin: 0 auto; overflow-x: auto; }
+
+  /* ---------- Invoice (used for preview + PDF) ---------- */
+  .inv { width: 760px; margin: 0 auto; padding: 18px 20px; color: #111; font: 12px/1.4 "Segoe UI", Roboto, "Noto Sans", "DejaVu Sans", Arial, sans-serif; background: #fff; }
+  .inv .top { display: flex; justify-content: space-between; font-size: 11px; color: #333; }
+  .inv .title { text-align: center; font-weight: 700; letter-spacing: 1px; text-decoration: underline; font-size: 13px; margin: 2px 0 4px; }
+  .inv .shop { text-align: center; font-size: 28px; font-weight: 800; color: #c8102e; margin: 2px 0 0; letter-spacing: .5px; }
+  .inv .tag { text-align: center; font-weight: 700; font-size: 11px; }
+  .inv .addr { text-align: center; font-size: 13px; margin-bottom: 8px; }
+  .inv .band { border-top: 3px solid #c8102e; border-bottom: 1px solid #999; display: flex; justify-content: space-between; padding: 6px 2px; font-size: 12px; background: #fafafa; }
+  .inv .party { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 20px; padding: 8px 2px; border-bottom: 1px solid #999; }
+  .inv .party b { font-size: 13px; }
+  .inv table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+  .inv th { background: #c8102e; color: #fff; font-size: 11px; padding: 5px 4px; border: 1px solid #c8102e; }
+  .inv td { border: 1px solid #bbb; padding: 3px 4px; font-size: 11px; }
+  .inv .tail { page-break-inside: avoid; padding-top: 2px; }
+  .inv td.r, .inv th.r { text-align: right; } .inv td.c, .inv th.c { text-align: center; }
+  .inv tr { page-break-inside: avoid; }
+  .inv tfoot td { font-weight: 700; background: #f3f3f3; }
+  .inv .bottom { display: flex; gap: 16px; margin-top: 10px; page-break-inside: avoid; }
+  .inv .bank { flex: 1; font-size: 11.5px; }
+  .inv .sum { width: 300px; border-collapse: collapse; margin: 0; }
+  .inv .sum td { border: none; border-bottom: 1px dotted #bbb; padding: 3px 4px; font-size: 12px; }
+  .inv .sum .g td { font-size: 16px; font-weight: 800; border-top: 2px solid #111; border-bottom: 2px solid #111; color: #c8102e; }
+  .inv .inwords { border: 1px solid #999; padding: 5px 6px; margin-top: 8px; font-size: 12px; page-break-inside: avoid; }
+  .inv .foot { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 18px; font-size: 11px; page-break-inside: avoid; }
+  .inv .sign { text-align: center; min-width: 180px; }
+  .inv .sign .line { border-top: 1px solid #111; margin-top: 36px; padding-top: 3px; }
+  .inv .cg { text-align: center; font-size: 10px; color: #777; margin-top: 10px; }
+
+  @media (max-width: 760px) {
+    main { padding: 10px; }
+    #lineTable thead { display: none; }
+    #lineTable, #lineTable tbody { display: block; }
+    #lineTable tr { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; border: 1px solid var(--line); border-radius: 8px; padding: 10px; margin-bottom: 10px; position: relative; }
+    #lineTable td { border: none; padding: 0; text-align: left !important; font-size: 13px; }
+    #lineTable td[data-l]::before { content: attr(data-l); display: block; font-size: 11px; color: var(--muted); }
+    #lineTable td.idx { display: none; }
+    #lineTable td.nm { grid-column: 1 / -1; padding-right: 36px; font-weight: 600; }
+    #lineTable td.del { position: absolute; top: 8px; right: 8px; }
+    #lineTable td.empty { grid-column: 1 / -1; text-align: center !important; }
+    #lineTable input.q, #lineTable input.pd { width: 100%; }
+    .totals { max-width: none; }
+  }
+
+  @media print {
+    body * { visibility: hidden; }
+    #previewPaper, #previewPaper * { visibility: visible; }
+    #previewPaper { position: absolute; left: 0; top: 0; }
+    #previewPaper .inv { zoom: 1 !important; }
+    .modal { background: none; padding: 0; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>🧾 Amul Billing</h1>
+  <nav>
+    <button data-tab="bill" class="active">New Bill</button>
+    <button data-tab="items">Items</button>
+    <button data-tab="history">History</button>
+    <button data-tab="settings">Settings</button>
+  </nav>
+</header>
+
+<main>
+  <!-- ================= NEW BILL ================= -->
+  <section class="tab active" id="tab-bill">
+    <div class="card">
+      <h2>Bill &amp; Party Details</h2>
+      <div class="grid">
+        <div><label>Bill No.</label><input id="billNo"></div>
+        <div><label>Date</label><input id="billDate" type="date"></div>
+        <div><label>Party / Shop Name</label><input id="pName" list="custList" placeholder="Type or pick saved customer"><datalist id="custList"></datalist></div>
+        <div><label>Mobile</label><input id="pMobile" inputmode="tel"></div>
+        <div><label>GSTIN</label><input id="pGstin" style="text-transform:uppercase"></div>
+        <div><label>Address</label><input id="pAddr"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Add Items</h2>
+      <input id="itemSearch" placeholder="Search item by name or code…">
+      <div class="chips" id="chips"></div>
+    </div>
+
+    <div class="card">
+      <div class="row"><h2 style="margin:0">Bill Items</h2><span class="spacer"></span>
+        <span class="muted" id="pdHint"></span></div>
+      <div class="scroll">
+        <table class="t" id="lineTable">
+          <thead><tr>
+            <th>#</th><th>Item</th><th class="r">MRP</th><th class="r">Pcs/Case</th><th class="r">Basic Rate/Case</th>
+            <th class="r">Cases</th><th class="r">Loose Pcs</th><th class="r" id="thPrem">Premium</th><th class="r" id="thDisc">Discount</th>
+            <th class="r">Net Rate/Case</th><th class="r">Amount</th><th></th>
+          </tr></thead>
+          <tbody id="lines"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="totals" id="totals"></div>
+      <div class="words" id="words"></div>
+      <div class="row" style="margin-top:14px">
+        <button class="btn danger" id="btnClear">Clear Bill</button>
+        <span class="spacer"></span>
+        <button class="btn" id="btnPreview">Preview / Print</button>
+        <button class="btn green" id="btnPdf">Save &amp; Download PDF</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= ITEMS ================= -->
+  <section class="tab" id="tab-items">
+    <div class="card">
+      <div class="row"><h2 style="margin:0">Item List</h2><span class="spacer"></span>
+        <button class="btn sm" id="btnAddItem">+ Add Item</button>
+        <button class="btn sm danger" id="btnResetItems">Reset to default list</button>
+      </div>
+      <p class="muted">Rate is the <b>basic rate per case</b> (before GST). Default premium/discount are filled in automatically when the item is added to a bill. Changes save automatically.</p>
+      <div class="scroll">
+        <table class="t">
+          <thead><tr><th>Code</th><th>Item Name</th><th>HSN</th><th class="r">MRP</th><th class="r">Pcs/Case</th><th class="r">Basic Rate/Case</th><th class="r">Def. Premium</th><th class="r">Def. Discount</th><th></th></tr></thead>
+          <tbody id="itemRows"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= HISTORY ================= -->
+  <section class="tab" id="tab-history">
+    <div class="card">
+      <div class="row"><h2 style="margin:0">Saved Bills</h2><span class="spacer"></span>
+        <input id="histSearch" placeholder="Search party / bill no…" style="max-width:260px"></div>
+      <div class="scroll">
+        <table class="t">
+          <thead><tr><th>Bill No.</th><th>Date</th><th>Party</th><th class="r">Items</th><th class="r">Grand Total</th><th></th></tr></thead>
+          <tbody id="histRows"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= SETTINGS ================= -->
+  <section class="tab" id="tab-settings">
+    <div class="card">
+      <h2>Your Business (printed on the bill)</h2>
+      <div class="grid">
+        <div><label>Business Name</label><input data-s="shopName"></div>
+        <div><label>Tag line</label><input data-s="tagline"></div>
+        <div><label>Address</label><input data-s="address"></div>
+        <div><label>GSTIN</label><input data-s="gstin"></div>
+        <div><label>Mobile</label><input data-s="mobile"></div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Bank / Payment</h2>
+      <div class="grid">
+        <div><label>Bank Name &amp; Branch</label><input data-s="bankName"></div>
+        <div><label>Account Holder</label><input data-s="accName"></div>
+        <div><label>Account No.</label><input data-s="accNo"></div>
+        <div><label>IFSC</label><input data-s="ifsc"></div>
+        <div><label>UPI ID</label><input data-s="upi"></div>
+        <div><label>Note on bill</label><input data-s="note"></div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Billing Rules</h2>
+      <div class="grid">
+        <div><label>Bill No. Prefix</label><input data-s="prefix"></div>
+        <div><label>Next Bill Number</label><input data-s="nextNo" type="number" min="1"></div>
+        <div><label>Apply GST</label><select data-s="gstOn"><option value="yes">Yes (CGST + SGST)</option><option value="no">No GST</option></select></div>
+        <div><label>GST Rate % (total)</label><input data-s="gstRate" type="number" step="0.01"></div>
+        <div><label>Premium / Discount entered as</label><select data-s="pdType"><option value="pct">% of basic rate</option><option value="amt">₹ per case</option></select></div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Backup</h2>
+      <p class="muted">All data (items, settings, bills, customers) is stored in this browser only. Take a backup now and then.</p>
+      <div class="row">
+        <button class="btn" id="btnExport">Download Backup</button>
+        <label class="btn" style="margin:0;color:var(--ink);font-size:14px">Restore Backup<input type="file" id="importFile" accept=".json" hidden></label>
+      </div>
+    </div>
+  </section>
+</main>
+
+<div class="modal" id="modal">
+  <div class="bar">
+    <button class="btn" id="mClose">✕ Close</button><span class="spacer"></span>
+    <button class="btn" id="mPrint">Print</button>
+    <button class="btn" id="mShare" hidden>Share</button>
+    <button class="btn green" id="mPdf">Download PDF</button>
+  </div>
+  <div class="paper" id="previewPaper"></div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script src="lib/html2pdf.bundle.min.js"></script>
+<script>
+/* ======================= Data ======================= */
+const DEFAULT_ITEMS = [
+  ['ICPPCC138',  'Amul IC Tru Tub Chikoo Charm 1L (3x6)',           270, 18,  2899.80],
+  ['ICPPMM134',  'Amul IC Tru Tub Mango Mania 1L (3x6)',            270, 18,  2899.80],
+  ['ICPPBSC95',  'Amul IC Tub Butterscotch Bliss 1L (3x6)',         215, 18,  2769.84],
+  ['ICSTKMK77',  'Amul IC Stk Kulfi Kashmiri 60ml (20x8)',           20, 160, 2290.29],
+  ['ICSTBDF90',  'Amul IC Stk Kulfi Bombay Df 60ml (20x8)',          25, 160, 2862.86],
+  ['ICSTKMK105', 'Amul IC Stk Kaju Kulfi 60ml (20x8)',               20, 160, 2290.29],
+  ['ICSTKOS59',  'Amul IC Stk Kulfi Pista Malai 60ml (20x8)',        30, 160, 3435.43],
+  ['ICSTRJW85',  'Amul IC Stk Kulfi Rajwadi 40ml (20x8)',            10, 160, 1215.24],
+  ['ICTRBSC24',  'Amul IC Tricone Butterscotch 100ml (20x6)',        30, 120, 2576.57],
+  ['ICTRCHO25',  'Amul IC Tricone Chocolate 100ml (20x6)',           30, 120, 2576.57],
+  ['ICTRGBS52',  'Amul IC Tricone Gold BScotch 120ml (20x6)',        40, 120, 2864.00],
+  ['ICTRVAN35',  'Amul IC Tricone Van (Rural) 40ml (20x8)',          10, 160, 1199.24],
+  ['ICCUKAL131', 'Amul IC Jumbo Cup King Alph. 125ml (8x9)',         35, 72,  1803.60],
+].map(([code, name, mrp, upc, rate], i) => ({ id: 'd' + i, code, name, hsn: '210500', mrp, upc, rate, prem: 0, disc: 0 }));
+
+const DEFAULT_SETTINGS = {
+  shopName: 'Your Business Name', tagline: '(Distributor of Amul Products)', address: 'Main Road, Your City',
+  gstin: '', mobile: '', bankName: '', accName: '', accNo: '', ifsc: '', upi: '',
+  note: 'Goods once sold will not be taken back.', prefix: 'INV/26-27/', nextNo: 1,
+  gstOn: 'yes', gstRate: 5, pdType: 'pct',
+};
+
+const store = {
+  get(k, d) { try { const v = localStorage.getItem('amulbill.' + k); return v ? JSON.parse(v) : d; } catch { return d; } },
+  set(k, v) { try { localStorage.setItem('amulbill.' + k, JSON.stringify(v)); } catch {} },
+};
+
+let settings = { ...DEFAULT_SETTINGS, ...store.get('settings', {}) };
+let items    = store.get('items', null) || structuredClone(DEFAULT_ITEMS);
+let history  = store.get('history', []);
+let customers= store.get('customers', []);
+let bill     = store.get('draft', null) || newBill();
+
+function newBill() {
+  return { no: settings.prefix + String(settings.nextNo).padStart(4, '0'), date: today(),
+           party: { name: '', mobile: '', gstin: '', address: '' }, lines: [] };
+}
+function today() { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 10); }
+
+/* ======================= Helpers ======================= */
+const $ = s => document.querySelector(s);
+const r2 = n => Math.round((+n + Number.EPSILON) * 100) / 100;
+const num = v => { const n = parseFloat(v); return isFinite(n) ? n : 0; };
+const money = n => '₹' + r2(n).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const plain = n => r2(n).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const fmtDate = iso => iso ? iso.split('-').reverse().join('/') : '';
+function toast(msg) { const t = $('#toast'); t.textContent = msg; t.style.display = 'block'; clearTimeout(toast.t); toast.t = setTimeout(() => t.style.display = 'none', 2200); }
+
+function inWords(n) {
+  n = Math.round(n);
+  if (n === 0) return 'Zero';
+  const a = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve', 'Thirteen',
+             'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
+  const b = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+  const two = x => x < 20 ? a[x] : b[Math.floor(x / 10)] + (x % 10 ? ' ' + a[x % 10] : '');
+  const three = x => x >= 100 ? a[Math.floor(x / 100)] + ' Hundred' + (x % 100 ? ' ' + two(x % 100) : '') : two(x);
+  const parts = [];
+  const crore = Math.floor(n / 1e7), lakh = Math.floor(n / 1e5) % 100, th = Math.floor(n / 1000) % 100, rest = n % 1000;
+  if (crore) parts.push(inWords(crore) + ' Crore');
+  if (lakh) parts.push(two(lakh) + ' Lakh');
+  if (th) parts.push(two(th) + ' Thousand');
+  if (rest) parts.push(three(rest));
+  return parts.join(' ');
+}
+
+/* ======================= Calculation ======================= */
+function calcLine(l, pdType) {
+  const qty = num(l.cs) + (l.upc ? num(l.pcs) / l.upc : 0);   // in cases
+  const premAmt = pdType === 'pct' ? l.rate * num(l.prem) / 100 : num(l.prem);
+  const discAmt = pdType === 'pct' ? l.rate * num(l.disc) / 100 : num(l.disc);
+  const net = l.rate + premAmt - discAmt;
+  return { qty, premAmt, discAmt, net, basic: r2(l.rate * qty), premTotal: r2(premAmt * qty), discTotal: r2(discAmt * qty), amount: r2(net * qty) };
+}
+
+function calcBill(b, s) {
+  const pdType = b.pdType || s.pdType;
+  const gstOn = (b.gstOn ?? s.gstOn) === 'yes';
+  const gstRate = num(b.gstRate ?? s.gstRate);
+  const rows = b.lines.map(l => ({ l, c: calcLine(l, pdType) }));
+  const sum = k => r2(rows.reduce((t, r) => t + r.c[k], 0));
+  const basic = sum('basic'), prem = sum('premTotal'), disc = sum('discTotal'), taxable = sum('amount');
+  const half = gstOn ? r2(taxable * gstRate / 200) : 0;
+  const exact = taxable + half * 2;
+  const grand = Math.round(exact);
+  return { rows, pdType, gstOn, gstRate, basic, prem, disc, taxable, cgst: half, sgst: half, roundOff: r2(grand - exact), grand,
+           cases: rows.reduce((t, r) => t + num(r.l.cs), 0), pcs: rows.reduce((t, r) => t + num(r.l.pcs), 0) };
+}
+
+const qtyText = l => [num(l.cs) ? num(l.cs) + ' cs' : '', num(l.pcs) ? num(l.pcs) + ' pc' : ''].filter(Boolean).join(' + ') || '0';
+const pdText = (v, type) => !num(v) ? '-' : type === 'pct' ? plain(v) + '%' : money(v);
+
+/* ======================= Bill tab ======================= */
+function saveDraft() { store.set('draft', bill); }
+
+function bindBillHeader() {
+  const map = { billNo: ['no'], billDate: ['date'], pName: ['party', 'name'], pMobile: ['party', 'mobile'], pGstin: ['party', 'gstin'], pAddr: ['party', 'address'] };
+  for (const [id, path] of Object.entries(map)) {
+    const el = $('#' + id);
+    el.value = path.length === 1 ? bill[path[0]] : bill.party[path[1]];
+    el.oninput = () => {
+      if (path.length === 1) bill[path[0]] = el.value; else bill.party[path[1]] = id === 'pGstin' ? el.value.toUpperCase() : el.value;
+      if (id === 'pName') {
+        const c = customers.find(c => c.name.toLowerCase() === el.value.trim().toLowerCase());
+        if (c) { Object.assign(bill.party, c); $('#pMobile').value = c.mobile; $('#pGstin').value = c.gstin; $('#pAddr').value = c.address; }
+      }
+      saveDraft();
+    };
+  }
+  $('#custList').innerHTML = customers.map(c => `<option value="${esc(c.name)}">`).join('');
+}
+
+function renderChips() {
+  const q = $('#itemSearch').value.trim().toLowerCase();
+  const inBill = new Set(bill.lines.map(l => l.itemId));
+  const list = items.filter(i => !q || i.name.toLowerCase().includes(q) || i.code.toLowerCase().includes(q));
+  $('#chips').innerHTML = list.length ? list.map(i =>
+    `<button class="chip ${inBill.has(i.id) ? 'in' : ''}" data-id="${i.id}">${esc(i.name)} <small>MRP ${i.mrp}</small></button>`).join('')
+    : '<span class="muted">No item found. Add it in the Items tab.</span>';
+}
+
+function addItem(id) {
+  const existing = bill.lines.findIndex(l => l.itemId === id);
+  if (existing >= 0) { focusQty(existing); toast('Already in bill – update the quantity'); return; }
+  const i = items.find(x => x.id === id);
+  bill.lines.push({ itemId: i.id, code: i.code, name: i.name, hsn: i.hsn, mrp: i.mrp, upc: i.upc, rate: i.rate, cs: 1, pcs: 0, prem: i.prem || 0, disc: i.disc || 0 });
+  saveDraft(); renderLines(); renderChips(); focusQty(bill.lines.length - 1);
+}
+function focusQty(idx) { const el = document.querySelector(`#lines tr[data-i="${idx}"] input[data-f="cs"]`); if (el) { el.focus(); el.select(); } }
+
+function renderLines() {
+  const unit = settings.pdType === 'pct' ? '%' : '₹/case';
+  $('#thPrem').textContent = `Premium (${unit})`; $('#thDisc').textContent = `Discount (${unit})`;
+  $('#pdHint').textContent = 'Premium is added to and discount subtracted from the basic rate.';
+  if (!bill.lines.length) { $('#lines').innerHTML = '<tr><td colspan="12" class="empty">No items yet – tap an item above to add it.</td></tr>'; renderTotals(); return; }
+  $('#lines').innerHTML = bill.lines.map((l, idx) => `
+    <tr data-i="${idx}">
+      <td class="idx">${idx + 1}</td>
+      <td class="nm">${esc(l.name)}<div class="muted">${esc(l.code)}</div></td>
+      <td class="r" data-l="MRP">${plain(l.mrp)}</td>
+      <td class="r" data-l="Pcs/Case">${l.upc}</td>
+      <td class="r" data-l="Rate/Case" style="grid-column: span 2">${plain(l.rate)}</td>
+      <td class="r" data-l="Cases"><input class="num q" type="number" min="0" step="1" inputmode="decimal" data-f="cs" value="${l.cs}"></td>
+      <td class="r" data-l="Loose Pcs"><input class="num q" type="number" min="0" step="1" inputmode="decimal" data-f="pcs" value="${l.pcs}"></td>
+      <td class="r" data-l="Premium ${unit}"><input class="num pd" type="number" min="0" step="0.01" inputmode="decimal" data-f="prem" value="${l.prem}"></td>
+      <td class="r" data-l="Discount ${unit}"><input class="num pd" type="number" min="0" step="0.01" inputmode="decimal" data-f="disc" value="${l.disc}"></td>
+      <td class="r" data-l="Net Rate/Case" style="grid-column: span 2" data-o="net"></td>
+      <td class="r" data-l="Amount" style="grid-column: span 2" data-o="amt"></td>
+      <td class="del"><button class="btn sm danger" data-del="${idx}" title="Remove">✕</button></td>
+    </tr>`).join('');
+  updateLineOutputs(); renderTotals();
+}
+
+function updateLineOutputs() {
+  bill.lines.forEach((l, idx) => {
+    const tr = document.querySelector(`#lines tr[data-i="${idx}"]`); if (!tr) return;
+    const c = calcLine(l, settings.pdType);
+    tr.querySelector('[data-o="net"]').textContent = plain(c.net);
+    tr.querySelector('[data-o="amt"]').innerHTML = `<b>${plain(c.amount)}</b>`;
+  });
+}
+
+function renderTotals() {
+  const t = calcBill(bill, settings);
+  const rows = [
+    ['Basic Value', money(t.basic)],
+    ['+ Premium', money(t.prem)],
+    ['− Discount', money(t.disc)],
+    ['Taxable Value', money(t.taxable)],
+  ];
+  if (t.gstOn) rows.push([`CGST @ ${t.gstRate / 2}%`, money(t.cgst)], [`SGST @ ${t.gstRate / 2}%`, money(t.sgst)]);
+  rows.push(['Round Off', (t.roundOff >= 0 ? '+' : '−') + money(Math.abs(t.roundOff))]);
+  $('#totals').innerHTML = rows.map(([k, v]) => `<span>${k}</span><span style="text-align:right">${v}</span>`).join('') +
+    `<span class="grand">GRAND TOTAL</span><span class="grand" style="text-align:right">${money(t.grand)}</span>`;
+  $('#words').textContent = t.grand ? `Rupees ${inWords(t.grand)} Only` : '';
+}
+
+/* ======================= Invoice HTML ======================= */
+function invoiceHTML(b) {
+  const s = b.seller || settings;
+  const t = calcBill(b, settings);
+  const pdUnit = t.pdType === 'pct' ? '%' : '₹/cs';
+  const body = t.rows.map(({ l, c }, i) => `
+    <tr>
+      <td class="c">${String(i + 1).padStart(2, '0')}</td>
+      <td>${esc(l.name)}<br><span style="color:#777;font-size:9.5px">${esc(l.code)} · ${l.upc} pc/case</span></td>
+      <td class="c">${esc(l.hsn)}</td>
+      <td class="r">${plain(l.mrp)}</td>
+      <td class="c" style="white-space:nowrap">${qtyText(l)}</td>
+      <td class="r">${plain(l.rate)}</td>
+      <td class="r">${pdText(l.prem, t.pdType)}</td>
+      <td class="r">${pdText(l.disc, t.pdType)}</td>
+      <td class="r">${plain(c.net)}</td>
+      <td class="r"><b>${plain(c.amount)}</b></td>
+    </tr>`).join('');
+  const sumRows = [
+    ['Basic Value', plain(t.basic)],
+    t.prem ? ['Add: Premium', plain(t.prem)] : null,
+    t.disc ? ['Less: Discount', plain(t.disc)] : null,
+    ['Taxable Value', plain(t.taxable)],
+    t.gstOn ? [`CGST @ ${t.gstRate / 2}%`, plain(t.cgst)] : null,
+    t.gstOn ? [`SGST @ ${t.gstRate / 2}%`, plain(t.sgst)] : null,
+    ['Round Off', (t.roundOff < 0 ? '-' : '') + plain(Math.abs(t.roundOff))],
+  ].filter(Boolean);
+  const bank = [
+    s.bankName && `Bank: <b>${esc(s.bankName)}</b>`, s.accName && `A/c Name: <b>${esc(s.accName)}</b>`,
+    s.accNo && `A/c No.: <b>${esc(s.accNo)}</b>`, s.ifsc && `IFSC: <b>${esc(s.ifsc)}</b>`, s.upi && `UPI: <b>${esc(s.upi)}</b>`,
+  ].filter(Boolean);
+  return `<div class="inv">
+    <div class="top"><span>${s.gstin ? 'GSTIN: ' + esc(s.gstin) : ''}</span><span>${s.mobile ? 'Mob: ' + esc(s.mobile) : ''}</span></div>
+    <div class="title">${t.gstOn ? 'TAX INVOICE' : 'BILL OF SUPPLY'}</div>
+    <div class="shop">${esc(s.shopName)}</div>
+    <div class="tag">${esc(s.tagline)}</div>
+    <div class="addr">${esc(s.address)}</div>
+    <div class="band"><span>Bill No.: <b>${esc(b.no)}</b></span><span>Date: <b>${fmtDate(b.date)}</b></span></div>
+    <div class="party">
+      <div>Party Name: <b>${esc(b.party.name) || '—'}</b></div>
+      <div>Mobile: <b>${esc(b.party.mobile) || '—'}</b></div>
+      <div>GSTIN: <b>${esc(b.party.gstin) || '—'}</b></div>
+      <div>Address: <b>${esc(b.party.address) || '—'}</b></div>
+    </div>
+    <table>
+      <thead><tr><th class="c">S.N</th><th>Name of Goods</th><th class="c">HSN</th><th class="r">MRP</th><th class="c">Qty</th>
+        <th class="r">Rate/Case</th><th class="r">Premium<br>(${pdUnit})</th><th class="r">Discount<br>(${pdUnit})</th><th class="r">Net Rate</th><th class="r">Amount</th></tr></thead>
+      <tbody>${body}</tbody>
+      <tfoot><tr><td></td><td>Total</td><td></td><td></td><td class="c">${t.cases} cs${t.pcs ? ' + ' + t.pcs + ' pc' : ''}</td>
+        <td></td><td></td><td></td><td></td><td class="r">${plain(t.taxable)}</td></tr></tfoot>
+    </table>
+    <div class="bottom">
+      <div class="bank">${bank.length ? '<b>Pay Online</b><br>' + bank.join('<br>') : ''}${s.note ? `<p style="margin:8px 0 0">Note: ${esc(s.note)}</p>` : ''}</div>
+      <table class="sum">
+        ${sumRows.map(([k, v]) => `<tr><td>${k}</td><td class="r">${v}</td></tr>`).join('')}
+        <tr class="g"><td>GRAND TOTAL</td><td class="r">₹${t.grand.toLocaleString('en-IN')}</td></tr>
+      </table>
+    </div>
+    <div class="tail">
+    <div class="inwords">Amount in words: <b>Rupees ${inWords(t.grand)} Only</b></div>
+    <div class="foot">
+      <div>Receiver's Signature</div>
+      <div class="sign">For <b>${esc(s.shopName)}</b><div class="line">Authorised Signatory</div></div>
+    </div>
+    <div class="cg">This is a computer generated bill.</div>
+    </div>
+  </div>`;
+}
+
+/* ======================= PDF ======================= */
+let previewBill = null;
+
+function pdfName(b) { return (b.no + '_' + (b.party.name || 'bill')).replace(/[^\w\-]+/g, '_') + '.pdf'; }
+function pdfWorker(b) {
+  return html2pdf().set({
+    margin: [6, 6, 6, 6], filename: pdfName(b),
+    image: { type: 'jpeg', quality: 0.96 },
+    html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff', scrollX: 0, scrollY: 0 },
+    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+    pagebreak: { mode: ['css', 'legacy'], avoid: ['tr', '.bottom', '.tail'] },
+  }).from(invoiceHTML(b));
+}
+async function downloadPdf(b) { toast('Creating PDF…'); window.scrollTo(0, 0); $('#modal').scrollTop = 0; await pdfWorker(b).save(); toast('PDF downloaded'); }
+
+function validate() {
+  if (!bill.party.name.trim()) { toast('Enter party / shop name'); $('#pName').focus(); return false; }
+  if (!bill.lines.length) { toast('Add at least one item'); return false; }
+  if (bill.lines.some(l => calcLine(l, settings.pdType).qty <= 0)) { toast('Some items have zero quantity'); return false; }
+  return true;
+}
+
+function finalizeBill() {
+  const t = calcBill(bill, settings);
+  const snap = structuredClone(bill);
+  snap.pdType = settings.pdType; snap.gstOn = settings.gstOn; snap.gstRate = settings.gstRate;
+  snap.seller = Object.fromEntries(['shopName', 'tagline', 'address', 'gstin', 'mobile', 'bankName', 'accName', 'accNo', 'ifsc', 'upi', 'note'].map(k => [k, settings[k]]));
+  snap.grand = t.grand; snap.savedAt = Date.now();
+  const at = history.findIndex(h => h.no === snap.no);
+  if (at >= 0) history[at] = snap; else {
+    history.unshift(snap);
+    // advance counter if this bill used the auto number
+    if (snap.no === settings.prefix + String(settings.nextNo).padStart(4, '0')) { settings.nextNo = num(settings.nextNo) + 1; store.set('settings', settings); }
+  }
+  store.set('history', history);
+  const p = { ...snap.party, name: snap.party.name.trim() };
+  const ci = customers.findIndex(c => c.name.toLowerCase() === p.name.toLowerCase());
+  if (ci >= 0) customers[ci] = p; else customers.push(p);
+  customers.sort((a, b) => a.name.localeCompare(b.name));
+  store.set('customers', customers);
+  return snap;
+}
+
+/* ======================= Preview modal ======================= */
+function openPreview(b) {
+  previewBill = b;
+  $('#previewPaper').innerHTML = invoiceHTML(b);
+  $('#modal').classList.add('open');
+  const w = $('#previewPaper').clientWidth;
+  $('#previewPaper .inv').style.zoom = w < 800 ? (w / 800).toFixed(3) : '';
+}
+$('#mClose').onclick = () => $('#modal').classList.remove('open');
+$('#mPrint').onclick = () => window.print();
+$('#mPdf').onclick = () => downloadPdf(previewBill);
+if (navigator.canShare) {
+  $('#mShare').hidden = false;
+  $('#mShare').onclick = async () => {
+    try {
+      window.scrollTo(0, 0); $('#modal').scrollTop = 0;
+      const blob = await pdfWorker(previewBill).outputPdf('blob');
+      const file = new File([blob], pdfName(previewBill), { type: 'application/pdf' });
+      if (navigator.canShare({ files: [file] })) await navigator.share({ files: [file], title: previewBill.no });
+      else toast('Sharing files is not supported here');
+    } catch (e) { if (e.name !== 'AbortError') toast('Could not share'); }
+  };
+}
+
+/* ======================= Items tab ======================= */
+function renderItems() {
+  $('#itemRows').innerHTML = items.map((i, idx) => `
+    <tr data-i="${idx}">
+      <td><input data-k="code" value="${esc(i.code)}" style="width:110px"></td>
+      <td><input data-k="name" value="${esc(i.name)}" style="min-width:260px"></td>
+      <td><input data-k="hsn" value="${esc(i.hsn)}" style="width:80px"></td>
+      <td><input data-k="mrp" class="num" type="number" step="0.01" value="${i.mrp}" style="width:80px"></td>
+      <td><input data-k="upc" class="num" type="number" step="1" min="1" value="${i.upc}" style="width:70px"></td>
+      <td><input data-k="rate" class="num" type="number" step="0.01" value="${i.rate}" style="width:100px"></td>
+      <td><input data-k="prem" class="num" type="number" step="0.01" value="${i.prem || 0}" style="width:80px"></td>
+      <td><input data-k="disc" class="num" type="number" step="0.01" value="${i.disc || 0}" style="width:80px"></td>
+      <td><button class="btn sm danger" data-delitem="${idx}">Delete</button></td>
+    </tr>`).join('');
+}
+$('#itemRows').addEventListener('input', e => {
+  const k = e.target.dataset.k; if (!k) return;
+  const i = items[+e.target.closest('tr').dataset.i];
+  i[k] = ['mrp', 'upc', 'rate', 'prem', 'disc'].includes(k) ? num(e.target.value) : e.target.value;
+  store.set('items', items); renderChips();
+});
+$('#itemRows').addEventListener('click', e => {
+  const idx = e.target.dataset.delitem; if (idx === undefined) return;
+  if (!confirm(`Delete "${items[idx].name}"?`)) return;
+  items.splice(idx, 1); store.set('items', items); renderItems(); renderChips();
+});
+$('#btnAddItem').onclick = () => {
+  items.unshift({ id: 'u' + Date.now(), code: '', name: 'New Item', hsn: '210500', mrp: 0, upc: 1, rate: 0, prem: 0, disc: 0 });
+  store.set('items', items); renderItems(); renderChips();
+  document.querySelector('#itemRows input[data-k="name"]').select();
+};
+$('#btnResetItems').onclick = () => {
+  if (!confirm('Replace your item list with the default Amul list? Your edits will be lost.')) return;
+  items = structuredClone(DEFAULT_ITEMS); store.set('items', items); renderItems(); renderChips();
+};
+
+/* ======================= History tab ======================= */
+function renderHistory() {
+  const q = $('#histSearch').value.trim().toLowerCase();
+  const list = history.map((h, idx) => ({ h, idx })).filter(({ h }) => !q || h.no.toLowerCase().includes(q) || h.party.name.toLowerCase().includes(q));
+  $('#histRows').innerHTML = list.length ? list.map(({ h, idx }) => `
+    <tr>
+      <td>${esc(h.no)}</td><td>${fmtDate(h.date)}</td><td>${esc(h.party.name)}</td>
+      <td class="r">${h.lines.length}</td><td class="r"><b>${money(h.grand)}</b></td>
+      <td style="white-space:nowrap">
+        <button class="btn sm" data-h="view" data-idx="${idx}">View / PDF</button>
+        <button class="btn sm" data-h="edit" data-idx="${idx}">Edit</button>
+        <button class="btn sm danger" data-h="del" data-idx="${idx}">Delete</button>
+      </td>
+    </tr>`).join('') : '<tr><td colspan="6" class="empty">No saved bills yet.</td></tr>';
+}
+$('#histSearch').oninput = renderHistory;
+$('#histRows').addEventListener('click', e => {
+  const act = e.target.dataset.h; if (!act) return;
+  const idx = +e.target.dataset.idx, h = history[idx];
+  if (act === 'view') openPreview(h);
+  if (act === 'edit') {
+    if (bill.lines.length && !confirm('Replace the bill currently being made?')) return;
+    bill = { no: h.no, date: h.date, party: { ...h.party }, lines: structuredClone(h.lines) };
+    saveDraft(); bindBillHeader(); renderLines(); renderChips(); showTab('bill');
+    toast('Editing ' + h.no + ' – saving will overwrite it');
+  }
+  if (act === 'del' && confirm(`Delete bill ${h.no}?`)) { history.splice(idx, 1); store.set('history', history); renderHistory(); }
+});
+
+/* ======================= Settings tab ======================= */
+function renderSettings() { document.querySelectorAll('[data-s]').forEach(el => el.value = settings[el.dataset.s]); }
+document.querySelectorAll('[data-s]').forEach(el => el.addEventListener('input', () => {
+  const k = el.dataset.s, old = settings.prefix + String(settings.nextNo).padStart(4, '0');
+  settings[k] = el.type === 'number' ? num(el.value) : el.value;
+  store.set('settings', settings);
+  if ((k === 'prefix' || k === 'nextNo') && bill.no === old) { bill.no = settings.prefix + String(settings.nextNo).padStart(4, '0'); $('#billNo').value = bill.no; saveDraft(); }
+  renderLines();
+}));
+$('#btnExport').onclick = () => {
+  const data = JSON.stringify({ settings, items, history, customers }, null, 1);
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([data], { type: 'application/json' }));
+  a.download = 'amul-billing-backup-' + today() + '.json'; a.click();
+};
+$('#importFile').onchange = async e => {
+  try {
+    const d = JSON.parse(await e.target.files[0].text());
+    if (!confirm('Restore this backup? Current data will be replaced.')) return;
+    settings = { ...DEFAULT_SETTINGS, ...d.settings }; items = d.items || items; history = d.history || []; customers = d.customers || [];
+    store.set('settings', settings); store.set('items', items); store.set('history', history); store.set('customers', customers);
+    renderAll(); toast('Backup restored');
+  } catch { toast('Not a valid backup file'); }
+  e.target.value = '';
+};
+
+/* ======================= Wiring ======================= */
+function showTab(name) {
+  document.querySelectorAll('nav button').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.id === 'tab-' + name));
+  if (name === 'history') renderHistory();
+  if (name === 'items') renderItems();
+}
+document.querySelectorAll('nav button').forEach(b => b.onclick = () => showTab(b.dataset.tab));
+
+$('#itemSearch').oninput = renderChips;
+$('#itemSearch').onkeydown = e => { if (e.key === 'Enter') { const c = $('#chips .chip'); if (c) { addItem(c.dataset.id); e.target.value = ''; renderChips(); } } };
+$('#chips').onclick = e => { const c = e.target.closest('.chip'); if (c) addItem(c.dataset.id); };
+
+$('#lines').addEventListener('input', e => {
+  const f = e.target.dataset.f; if (!f) return;
+  bill.lines[+e.target.closest('tr').dataset.i][f] = e.target.value === '' ? 0 : num(e.target.value);
+  saveDraft(); updateLineOutputs(); renderTotals();
+});
+$('#lines').addEventListener('click', e => {
+  const idx = e.target.dataset.del; if (idx === undefined) return;
+  bill.lines.splice(+idx, 1); saveDraft(); renderLines(); renderChips();
+});
+
+$('#btnClear').onclick = () => {
+  if (!confirm('Clear this bill and start a new one?')) return;
+  bill = newBill(); saveDraft(); bindBillHeader(); renderLines(); renderChips();
+};
+$('#btnPreview').onclick = () => { if (validate()) openPreview({ ...structuredClone(bill), pdType: settings.pdType, gstOn: settings.gstOn, gstRate: settings.gstRate }); };
+$('#btnPdf').onclick = async () => {
+  if (!validate()) return;
+  const snap = finalizeBill();
+  await downloadPdf(snap);
+  bill = newBill(); saveDraft(); bindBillHeader(); renderLines(); renderChips();
+  toast(`Bill ${snap.no} saved & downloaded`);
+};
+
+function renderAll() { bindBillHeader(); renderChips(); renderLines(); renderSettings(); renderItems(); renderHistory(); }
+renderAll();
+</script>
+</body>
+</html>
