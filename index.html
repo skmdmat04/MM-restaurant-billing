@@ -233,7 +233,7 @@
       <div class="search" style="flex:1"><input id="itemFilter" type="search" placeholder="Search items"></div>
       <button class="btn primary" id="btnAddItem">+ New</button>
     </div>
-    <p class="muted" style="margin:0 0 10px">Tap an item to edit. Rate is the <b>basic rate per case</b> (before GST).</p>
+    <p class="muted" style="margin:0 0 10px">Tap an item to edit. Enter the <b>basic rate per case</b> (before GST) – the rate per piece is worked out from it.</p>
     <div class="list" id="itemList"></div>
     <button class="btn ghost block" id="btnResetItems" style="color:var(--brand);margin-top:12px">Reset to default Amul item list</button>
   </section>
@@ -267,10 +267,10 @@
         <div><label>Bill No. Prefix</label><input data-s="prefix"></div>
         <div><label>Next Bill Number</label><input data-s="nextNo" type="number" min="1" inputmode="numeric"></div>
         <div><label>Apply GST</label><select data-s="gstOn"><option value="yes">Yes (CGST + SGST)</option><option value="no">No GST</option></select></div>
-        <div><label>GST Rate % (total)</label><input data-s="gstRate" type="number" step="0.01" inputmode="decimal"></div>
-        <div><label>Premium / Discount entered as</label><select data-s="pdType"><option value="pct">% of basic rate</option><option value="amt">₹ per case</option></select></div>
+        <div><label>Default GST % (for new items)</label><input data-s="gstRate" type="number" step="0.01" inputmode="decimal"></div>
+        <div><label>Premium / Discount entered as</label><select data-s="pdType"><option value="pct">% of basic rate</option><option value="amt">₹ per piece</option></select></div>
       </div>
-      <p class="muted" style="margin:10px 0 0">Premium and discount are only for your calculation – the bill PDF shows the final rate per case.</p>
+      <p class="muted" style="margin:10px 0 0">Premium and discount are only for your calculation – the bill PDF shows the final rate per piece.</p>
     </div>
     <div class="card">
       <h2>Backup</h2>
@@ -305,11 +305,12 @@
       <div style="grid-column:1/-1"><label>Item Name</label><input id="eName"></div>
       <div><label>Code</label><input id="eCode"></div>
       <div><label>HSN</label><input id="eHsn" inputmode="numeric"></div>
+      <div><label>GST % (total)</label><input id="eGst" class="num" type="number" step="any" min="0" inputmode="decimal"></div>
     </div>
     <div class="grid2" style="margin-top:10px">
       <div><label>MRP (per pc)</label><input id="eMrp" class="num" type="number" step="any" inputmode="decimal"></div>
       <div><label>Pcs per Case</label><input id="eUpc" class="num" type="number" step="1" min="1" inputmode="numeric"></div>
-      <div style="grid-column:1/-1"><label>Basic Rate per Case (₹, before GST)</label><input id="eRate" class="num" type="number" step="any" inputmode="decimal"></div>
+      <div style="grid-column:1/-1"><label>Basic Rate per Case (₹, before GST)</label><input id="eRate" class="num" type="number" step="any" inputmode="decimal"><div class="sub" id="ePcHint" style="margin-top:4px"></div></div>
       <div><label id="ePremL">Default Premium</label><input id="ePrem" class="num" type="number" step="any" inputmode="decimal"></div>
       <div><label id="eDiscL">Default Discount</label><input id="eDisc" class="num" type="number" step="any" inputmode="decimal"></div>
     </div>
@@ -346,7 +347,38 @@ const DEFAULT_ITEMS = [
   ['ICTRGBS52',  'Amul IC Tricone Gold BScotch 120ml (20x6)',        40, 120, 2864.00],
   ['ICTRVAN35',  'Amul IC Tricone Van (Rural) 40ml (20x8)',          10, 160, 1199.24],
   ['ICCUKAL131', 'Amul IC Jumbo Cup King Alph. 125ml (8x9)',         35, 72,  1803.60],
-].map(([code, name, mrp, upc, rate], i) => ({ id: 'd' + i, code, name, hsn: '210500', mrp, upc, rate, prem: 0, disc: 0 }));
+  // added from invoices of Aug/Sep 2026
+  ['ICTRBSC22',  'Amul IC Tricone Butterscotch 120ml (20x6)',        35, 120, 3006.00],
+  ['ICTRDCH43',  'Amul IC Tricone Dark Choc 120ml (20x6)',           45, 120, 3736.29],
+  ['ICTRKPI31',  'Amul IC Tricone Kesar Pista 120ml (20x6)',         40, 120, 3435.43],
+  ['ICTRVAN54',  'Amul IC Choco Tricone Vanilla 70ml (20x6)',        20, 120, 1717.72],
+  ['ICTRKUL57',  'Amul IC Tricone Kulfi 70ml (20x6)',                20, 120, 1717.72],
+  ['ICSTKRB64',  'Amul IC Stk Kulfi Raj Bhog 60ml (20x8)',           30, 160, 3435.43],
+  ['ICCOBSC13',  'Amul IC Combo B Scotch 750ml ((1+1)x19)',         270, 19,  3671.61],
+  ['ICCOVAN21',  'Amul IC Combo Vanilla 750ml ((1+1)x19)',          230, 19,  3127.67],
+  ['ICCUVAN152', 'Amul IC Cup Vanilla 55ml (16x9)',                  10, 144, 1093.71],
+  ['FPSCP02',    'Amul Happy Treats French Fries 26x425g',           90, 26,  1619.06, '200410'],
+  ['BTRCP01',    'Amul Butter 150x100 Gm',                           63, 150, 7974.67, '040510'],
+  ['BTRCP20',    'Amul Butter 8x8x200 Gm Tub',                      130, 64,  7021.09, '040510'],
+  ['IMFCP24',    'Amulspray 2x420x13.5 Gm',                           6, 840, 4148.64, '040229'],
+  ['IMFCP31',    'Amulspray 2x240x20 g (Rs 10/- Pack)',              10, 480, 4065.37, '040229'],
+  ['IMFCP02',    'Amulspray 24x500 Gm Tin',                         263, 24,  5406.98, '040229'],
+  ['DELCP10',    'Delicious 30x500 Gm',                             117, 30,  2382.62, '151790'],
+  ['AFCCP03',    'Amul Fresh Cream 32x250 ml TP',                    75, 32,  2148.00, '040150', 0],
+  ['AFCCP01',    'Amul Fresh Cream 12x1 Ltr TP',                    250, 12,  2685.00, '040150', 0],
+].map(([code, name, mrp, upc, rate, hsn = '210500', gst = 5], i) => ({ id: 'd' + i, code, name, hsn, mrp, upc, rate, gst, prem: 0, disc: 0 }));
+const ITEMS_VERSION = 2;
+
+// Add new default items to an existing item list (matched by code) and give old items a GST rate.
+function upgradeItems() {
+  if (store.get('itemsVersion', 1) >= ITEMS_VERSION) return;
+  const have = new Set(items.map(i => (i.code || '').toUpperCase()));
+  DEFAULT_ITEMS.forEach(d => { if (!have.has(d.code.toUpperCase())) items.push(structuredClone(d)); });
+  items.forEach(i => {
+    if (i.gst === undefined) i.gst = DEFAULT_ITEMS.find(d => d.code.toUpperCase() === (i.code || '').toUpperCase())?.gst ?? num(settings.gstRate);
+  });
+  store.set('items', items); store.set('itemsVersion', ITEMS_VERSION);
+}
 
 const DEFAULT_SETTINGS = {
   shopName: 'Your Business Name', tagline: '(Distributor of Amul Products)', address: 'Main Road, Your City',
@@ -367,7 +399,11 @@ let customers= store.get('customers', []);
 let bill     = store.get('draft', null) || newBill();
 
 function autoNo() { return settings.prefix + String(settings.nextNo).padStart(4, '0'); }
-function newBill() { return { no: autoNo(), date: today(), party: { name: '', mobile: '', gstin: '', address: '' }, lines: [] }; }
+function newBill() { return { no: autoNo(), date: today(), qtyMode: 'pc', party: { name: '', mobile: '', gstin: '', address: '' }, lines: [] }; }
+function toPieces(b) {
+  if (b.qtyMode !== 'pc') { b.lines.forEach(l => { l.pcs = num(l.cs) * (l.upc || 1) + num(l.pcs); l.cs = 0; }); b.qtyMode = 'pc'; }
+  return b;
+}
 function today() { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 10); }
 
 /* ======================= Helpers ======================= */
@@ -398,7 +434,17 @@ function inWords(n) {
 }
 
 /* ======================= Calculation ======================= */
-function calcLine(l, pdType) {
+function calcLine(l, pdType, mode) {
+  if (mode === 'pc') {
+    // Sold by piece: rate per piece = basic rate per case / pcs per case, rounded to paise.
+    const qty = num(l.cs) * (l.upc || 1) + num(l.pcs);
+    const basePc = l.rate / (l.upc || 1);
+    const premPc = pdType === 'pct' ? basePc * num(l.prem) / 100 : num(l.prem);
+    const discPc = pdType === 'pct' ? basePc * num(l.disc) / 100 : num(l.disc);
+    const net = r2(basePc + premPc - discPc);
+    const amount = r2(net * qty), premTotal = r2(premPc * qty), discTotal = r2(discPc * qty);
+    return { qty, net, basePc, amount, premTotal, discTotal, basic: r2(amount - premTotal + discTotal) };
+  }
   const qty = num(l.cs) + (l.upc ? num(l.pcs) / l.upc : 0);   // in cases
   const premAmt = pdType === 'pct' ? l.rate * num(l.prem) / 100 : num(l.prem);
   const discAmt = pdType === 'pct' ? l.rate * num(l.disc) / 100 : num(l.disc);
@@ -410,18 +456,26 @@ function calcBill(b, s) {
   const pdType = b.pdType || s.pdType;
   const gstOn = (b.gstOn ?? s.gstOn) === 'yes';
   const gstRate = num(b.gstRate ?? s.gstRate);
-  const rows = b.lines.map(l => ({ l, c: calcLine(l, pdType) }));
+  const mode = b.qtyMode || 'case';
+  const rows = b.lines.map(l => ({ l, c: calcLine(l, pdType, mode) }));
   const sum = k => r2(rows.reduce((t, r) => t + r.c[k], 0));
   const basic = sum('basic'), prem = sum('premTotal'), disc = sum('discTotal'), taxable = sum('amount');
-  const half = gstOn ? r2(taxable * gstRate / 200) : 0;
+  // GST is worked out per rate (items can have different GST, e.g. fresh cream 0%, ice cream 5%)
+  const byRate = {};
+  rows.forEach(r => { const g = r.l.gst ?? gstRate; byRate[g] = (byRate[g] || 0) + r.c.amount; });
+  const taxes = gstOn ? Object.entries(byRate).map(([rate, base]) => ({ rate: +rate, base: r2(base), half: r2(base * rate / 200) }))
+    .filter(x => x.rate > 0).sort((a, b) => a.rate - b.rate) : [];
+  const half = r2(taxes.reduce((t, x) => t + x.half, 0));
   const exact = taxable + half * 2;
   const grand = Math.round(exact);
-  return { rows, pdType, gstOn, gstRate, basic, prem, disc, taxable, cgst: half, sgst: half, roundOff: r2(grand - exact), grand,
-           cases: rows.reduce((t, r) => t + num(r.l.cs), 0), pcs: rows.reduce((t, r) => t + num(r.l.pcs), 0) };
+  return { rows, mode, pdType, gstOn, gstRate, taxes, basic, prem, disc, taxable, cgst: half, sgst: half, roundOff: r2(grand - exact), grand,
+           cases: rows.reduce((t, r) => t + num(r.l.cs), 0), pcs: rows.reduce((t, r) => t + num(r.l.pcs), 0),
+           totalPcs: rows.reduce((t, r) => t + num(r.l.cs) * (r.l.upc || 1) + num(r.l.pcs), 0) };
 }
+const totalQtyText = t => t.mode === 'pc' ? `${t.totalPcs} pcs` : `${t.cases} cs${t.pcs ? ' + ' + t.pcs + ' pc' : ''}`;
 
-const qtyText = l => [num(l.cs) ? num(l.cs) + ' cs' : '', num(l.pcs) ? num(l.pcs) + ' pc' : ''].filter(Boolean).join(' + ') || '0';
-const pdUnit = () => settings.pdType === 'pct' ? '%' : '₹/case';
+const qtyText = (l, mode) => mode === 'pc' ? `${num(l.cs) * (l.upc || 1) + num(l.pcs)} pcs` : [num(l.cs) ? num(l.cs) + ' cs' : '', num(l.pcs) ? num(l.pcs) + ' pc' : ''].filter(Boolean).join(' + ') || '0';
+const pdUnit = () => settings.pdType === 'pct' ? '%' : '₹/pc';
 
 /* ======================= Sheets (with Android back button support) ======================= */
 let openSheets = [];
@@ -473,16 +527,15 @@ function renderLines() {
     <div class="line" data-i="${idx}">
       <div class="line-head">
         <div style="flex:1;min-width:0"><div class="nm">${esc(l.name)}</div>
-          <div class="sub">MRP ₹${plain(l.mrp)} · ${l.upc} pcs/case · Basic ${money(l.rate)}/case</div></div>
+          <div class="sub">MRP ₹${plain(l.mrp)} · ${l.upc} pcs/case · Basic ${money(l.rate / (l.upc || 1))}/pc · GST ${num(l.gst ?? settings.gstRate)}%</div></div>
         <button class="icon-btn" data-del="${idx}" aria-label="Remove item">✕</button>
       </div>
       <div class="fields">
-        <div><label>Cases</label>${stepperHTML('cs', l.cs)}</div>
-        <div><label>Loose pcs</label>${stepperHTML('pcs', l.pcs)}</div>
+        <div style="grid-column:1/-1"><label>Pieces</label>${stepperHTML('pcs', l.pcs)}</div>
         <div class="pd"><label>Premium (${unit})</label><input class="num" type="number" min="0" step="any" inputmode="decimal" data-f="prem" value="${l.prem}"></div>
         <div class="pd"><label>Discount (${unit})</label><input class="num" type="number" min="0" step="any" inputmode="decimal" data-f="disc" value="${l.disc}"></div>
       </div>
-      <div class="line-foot"><span class="sub">Rate <b data-o="net"></b>/case</span><span class="amt" data-o="amt"></span></div>
+      <div class="line-foot"><span class="sub">Rate <b data-o="net"></b>/pc</span><span class="amt" data-o="amt"></span></div>
     </div>`).join('');
   updateLineOutputs(); renderTotals();
 }
@@ -490,7 +543,7 @@ function renderLines() {
 function updateLineOutputs() {
   bill.lines.forEach((l, idx) => {
     const el = document.querySelector(`#lines .line[data-i="${idx}"]`); if (!el) return;
-    const c = calcLine(l, settings.pdType);
+    const c = calcLine(l, settings.pdType, bill.qtyMode);
     el.querySelector('[data-o="net"]').textContent = money(c.net);
     el.querySelector('[data-o="amt"]').textContent = money(c.amount);
   });
@@ -502,14 +555,14 @@ function renderTotals() {
   if (t.prem) rows.push(['+ Premium', money(t.prem)]);
   if (t.disc) rows.push(['− Discount', money(t.disc)]);
   rows.push(['Sub Total', money(t.taxable)]);
-  if (t.gstOn) rows.push([`CGST @ ${t.gstRate / 2}%`, money(t.cgst)], [`SGST @ ${t.gstRate / 2}%`, money(t.sgst)]);
+  t.taxes.forEach(x => rows.push([`CGST @ ${x.rate / 2}%`, money(x.half)], [`SGST @ ${x.rate / 2}%`, money(x.half)]));
   rows.push(['Round Off', (t.roundOff >= 0 ? '+' : '−') + money(Math.abs(t.roundOff))]);
   $('#totals').innerHTML = rows.map(([k, v]) => `<span>${k}</span><span style="text-align:right">${v}</span>`).join('') +
     `<span class="grand">Grand Total</span><span class="grand" style="text-align:right">${money(t.grand)}</span>`;
   $('#words').textContent = t.grand ? `Rupees ${inWords(t.grand)} Only` : '';
   $('#barTotal').textContent = money(t.grand);
   const n = bill.lines.length;
-  $('#barInfo').textContent = n ? `${n} item${n > 1 ? 's' : ''} · ${t.cases} cs${t.pcs ? ' + ' + t.pcs + ' pc' : ''} · incl. GST` : 'No items yet';
+  $('#barInfo').textContent = n ? `${n} item${n > 1 ? 's' : ''} · ${totalQtyText(t)} · incl. GST` : 'No items yet';
 }
 
 function setLineField(idx, f, v) {
@@ -537,7 +590,7 @@ $('#lines').addEventListener('focusin', e => { if (e.target.matches('input')) se
 
 /* ----- Item picker ----- */
 function addLine(i) {
-  bill.lines.push({ itemId: i.id, code: i.code, name: i.name, hsn: i.hsn, mrp: i.mrp, upc: i.upc, rate: i.rate, cs: 1, pcs: 0, prem: i.prem || 0, disc: i.disc || 0 });
+  bill.lines.push({ itemId: i.id, code: i.code, name: i.name, hsn: i.hsn, mrp: i.mrp, upc: i.upc, rate: i.rate, gst: i.gst ?? num(settings.gstRate), cs: 0, pcs: 1, prem: i.prem || 0, disc: i.disc || 0 });
   saveDraft();
 }
 function renderPicker() {
@@ -545,10 +598,10 @@ function renderPicker() {
   const list = items.filter(i => !q || i.name.toLowerCase().includes(q) || i.code.toLowerCase().includes(q));
   $('#pickList').innerHTML = list.length ? list.map(i => {
     const li = bill.lines.findIndex(l => l.itemId === i.id);
-    const sub = `MRP ₹${plain(i.mrp)} · ${i.upc} pcs/case · ${money(i.rate)}`;
+    const sub = `MRP ₹${plain(i.mrp)} · ${i.upc} pcs/case · ${money(i.rate / (i.upc || 1))}/pc`;
     return li >= 0
       ? `<div class="li in" data-id="${i.id}"><div class="main"><div class="t1">${esc(i.name)}</div><div class="sub">${sub}</div></div>
-           <div class="right">${stepperHTML('cs', bill.lines[li].cs, `data-li="${li}"`)}<div class="sub" style="margin-top:2px">cases</div></div></div>`
+           <div class="right">${stepperHTML('pcs', bill.lines[li].pcs, `data-li="${li}"`)}<div class="sub" style="margin-top:2px">pieces</div></div></div>`
       : `<button class="li" data-add="${i.id}"><div class="main"><div class="t1">${esc(i.name)}</div><div class="sub">${sub}</div></div>
            <span class="badge">+ Add</span></button>`;
   }).join('') : '<div class="empty">No item found. Add it from the Items tab.</div>';
@@ -559,16 +612,16 @@ $('#btnOpenPicker').onclick = () => { $('#pickSearch').value = ''; renderPicker(
 $('#pickSearch').oninput = renderPicker;
 $('#pickList').addEventListener('click', e => {
   const add = e.target.closest('[data-add]');
-  if (add) { addLine(items.find(i => i.id === add.dataset.add)); renderPicker(); toast('Added – set the cases here or in the bill'); return; }
+  if (add) { addLine(items.find(i => i.id === add.dataset.add)); renderPicker(); toast('Added – set the pieces here or in the bill'); return; }
   const btn = e.target.closest('button[data-step]');
   if (btn) {
-    const li = +btn.dataset.li, v = Math.max(0, num(bill.lines[li].cs) + num(btn.dataset.d));
-    bill.lines[li].cs = v; btn.parentElement.querySelector('input').value = v; saveDraft();
+    const li = +btn.dataset.li, v = Math.max(0, num(bill.lines[li].pcs) + num(btn.dataset.d));
+    bill.lines[li].pcs = v; btn.parentElement.querySelector('input').value = v; saveDraft();
   }
 });
 $('#pickList').addEventListener('input', e => {
   if (e.target.dataset.li === undefined) return;
-  bill.lines[+e.target.dataset.li].cs = Math.max(0, num(e.target.value)); saveDraft();
+  bill.lines[+e.target.dataset.li].pcs = Math.max(0, num(e.target.value)); saveDraft();
 });
 
 /* ======================= Invoice HTML (premium/discount are NOT shown) ======================= */
@@ -578,17 +631,17 @@ function invoiceHTML(b) {
   const body = t.rows.map(({ l, c }, i) => `
     <tr>
       <td class="c">${String(i + 1).padStart(2, '0')}</td>
-      <td>${esc(l.name)}<br><span style="color:#777;font-size:9.5px">${esc(l.code)}${l.code ? ' · ' : ''}${l.upc} pc/case</span></td>
+      <td>${esc(l.name)}<br><span style="color:#777;font-size:9.5px">${esc(l.code)}${t.mode === 'pc' ? '' : (l.code ? ' · ' : '') + l.upc + ' pc/case'}</span></td>
       <td class="c">${esc(l.hsn)}</td>
+      <td class="c">${t.gstOn ? num(l.gst ?? t.gstRate) + '%' : '-'}</td>
       <td class="r">${plain(l.mrp)}</td>
-      <td class="c" style="white-space:nowrap">${qtyText(l)}</td>
+      <td class="c" style="white-space:nowrap">${qtyText(l, t.mode)}</td>
       <td class="r">${plain(c.net)}</td>
       <td class="r"><b>${plain(c.amount)}</b></td>
     </tr>`).join('');
   const sumRows = [
     ['Sub Total', plain(t.taxable)],
-    t.gstOn ? [`CGST @ ${t.gstRate / 2}%`, plain(t.cgst)] : null,
-    t.gstOn ? [`SGST @ ${t.gstRate / 2}%`, plain(t.sgst)] : null,
+    ...t.taxes.flatMap(x => [[`CGST @ ${x.rate / 2}%`, plain(x.half)], [`SGST @ ${x.rate / 2}%`, plain(x.half)]]),
     ['Round Off', (t.roundOff < 0 ? '-' : '') + plain(Math.abs(t.roundOff))],
   ].filter(Boolean);
   const bank = [
@@ -597,7 +650,7 @@ function invoiceHTML(b) {
   ].filter(Boolean);
   return `<div class="inv">
     <div class="top"><span>${s.gstin ? 'GSTIN: ' + esc(s.gstin) : ''}</span><span>${s.mobile ? 'Mob: ' + esc(s.mobile) : ''}</span></div>
-    <div class="title">${t.gstOn ? 'TAX INVOICE' : 'BILL OF SUPPLY'}</div>
+    <div class="title">${t.taxes.length ? 'TAX INVOICE' : 'BILL OF SUPPLY'}</div>
     <div class="shop">${esc(s.shopName)}</div>
     <div class="tag">${esc(s.tagline)}</div>
     <div class="addr">${esc(s.address)}</div>
@@ -609,10 +662,10 @@ function invoiceHTML(b) {
       <div>Address: <b>${esc(b.party.address) || '—'}</b></div>
     </div>
     <table>
-      <thead><tr><th class="c">S.N</th><th>Name of Goods</th><th class="c">HSN</th><th class="r">MRP</th><th class="c">Qty</th>
-        <th class="r">Rate/Case</th><th class="r">Amount</th></tr></thead>
+      <thead><tr><th class="c">S.N</th><th>Name of Goods</th><th class="c">HSN</th><th class="c">GST</th><th class="r">MRP</th><th class="c">Qty</th>
+        <th class="r">${t.mode === 'pc' ? 'Rate/Pc' : 'Rate/Case'}</th><th class="r">Amount</th></tr></thead>
       <tbody>${body}</tbody>
-      <tfoot><tr><td></td><td>Total</td><td></td><td></td><td class="c" style="white-space:nowrap">${t.cases} cs${t.pcs ? ' + ' + t.pcs + ' pc' : ''}</td>
+      <tfoot><tr><td></td><td>Total</td><td></td><td></td><td></td><td class="c" style="white-space:nowrap">${totalQtyText(t)}</td>
         <td></td><td class="r">${plain(t.taxable)}</td></tr></tfoot>
     </table>
     <div class="bottom">
@@ -651,7 +704,7 @@ function makePdfBlob(b) {
 function validate() {
   if (!bill.party.name.trim()) { toast('Enter party / shop name'); $('#pName').focus(); return false; }
   if (!bill.lines.length) { toast('Add at least one item'); return false; }
-  if (bill.lines.some(l => calcLine(l, settings.pdType).qty <= 0)) { toast('Some items have zero quantity'); return false; }
+  if (bill.lines.some(l => calcLine(l, settings.pdType, bill.qtyMode).qty <= 0)) { toast('Some items have zero quantity'); return false; }
   return true;
 }
 
@@ -745,27 +798,32 @@ function renderItems() {
   $('#itemList').innerHTML = list.length ? list.map(({ i, idx }) => `
     <button class="li" data-edit="${idx}">
       <div class="main"><div class="t1">${esc(i.name)}</div>
-        <div class="sub">${esc(i.code) || 'no code'} · MRP ₹${plain(i.mrp)} · ${i.upc} pcs/case${num(i.prem) ? ' · Prem ' + i.prem : ''}${num(i.disc) ? ' · Disc ' + i.disc : ''}</div></div>
-      <div class="right"><b>${money(i.rate)}</b><div class="sub">per case</div></div>
+        <div class="sub">${esc(i.code) || 'no code'} · MRP ₹${plain(i.mrp)} · ${i.upc} pcs/case · ${money(i.rate)}/case · GST ${num(i.gst ?? settings.gstRate)}%${num(i.prem) ? ' · Prem ' + i.prem : ''}${num(i.disc) ? ' · Disc ' + i.disc : ''}</div></div>
+      <div class="right"><b>${money(i.rate / (i.upc || 1))}</b><div class="sub">per pc</div></div>
     </button>`).join('') : '<div class="empty">No items.</div>';
 }
 function openItemEditor(idx) {
   editIdx = idx;
-  const i = idx >= 0 ? items[idx] : { code: '', name: '', hsn: '210500', mrp: '', upc: '', rate: '', prem: 0, disc: 0 };
+  const i = idx >= 0 ? items[idx] : { code: '', name: '', hsn: '210500', gst: num(settings.gstRate), mrp: '', upc: '', rate: '', prem: 0, disc: 0 };
   $('#itemSheetTitle').textContent = idx >= 0 ? 'Edit Item' : 'New Item';
   $('#eDelete').style.display = idx >= 0 ? '' : 'none';
   $('#ePremL').textContent = `Default Premium (${pdUnit()})`; $('#eDiscL').textContent = `Default Discount (${pdUnit()})`;
-  [['eName', 'name'], ['eCode', 'code'], ['eHsn', 'hsn'], ['eMrp', 'mrp'], ['eUpc', 'upc'], ['eRate', 'rate'], ['ePrem', 'prem'], ['eDisc', 'disc']]
+  [['eName', 'name'], ['eCode', 'code'], ['eHsn', 'hsn'], ['eGst', 'gst'], ['eMrp', 'mrp'], ['eUpc', 'upc'], ['eRate', 'rate'], ['ePrem', 'prem'], ['eDisc', 'disc']]
     .forEach(([id, k]) => $('#' + id).value = i[k] ?? '');
-  openSheet('itemSheet');
+  pcHint(); openSheet('itemSheet');
 }
+function pcHint() {
+  const rate = num($('#eRate').value), upc = num($('#eUpc').value);
+  $('#ePcHint').textContent = rate && upc ? `= ${money(rate / upc)} per piece (before GST)` : '';
+}
+$('#eRate').oninput = pcHint; $('#eUpc').oninput = pcHint;
 $('#itemList').addEventListener('click', e => { const b = e.target.closest('[data-edit]'); if (b) openItemEditor(+b.dataset.edit); });
 $('#itemFilter').oninput = renderItems;
 $('#btnAddItem').onclick = () => openItemEditor(-1);
 $('#eSave').onclick = () => {
   const v = { name: $('#eName').value.trim(), code: $('#eCode').value.trim(), hsn: $('#eHsn').value.trim(),
               mrp: num($('#eMrp').value), upc: Math.max(1, num($('#eUpc').value)), rate: num($('#eRate').value),
-              prem: num($('#ePrem').value), disc: num($('#eDisc').value) };
+              gst: num($('#eGst').value), prem: num($('#ePrem').value), disc: num($('#eDisc').value) };
   if (!v.name) { toast('Enter item name'); return; }
   if (!v.rate) { toast('Enter basic rate per case'); return; }
   if (editIdx >= 0) Object.assign(items[editIdx], v); else items.unshift({ id: 'u' + Date.now(), ...v });
@@ -777,7 +835,7 @@ $('#eDelete').onclick = () => {
 };
 $('#btnResetItems').onclick = () => {
   if (!confirm('Replace your item list with the default Amul list? Your edits will be lost.')) return;
-  items = structuredClone(DEFAULT_ITEMS); store.set('items', items); renderItems();
+  items = structuredClone(DEFAULT_ITEMS); store.set('items', items); store.set('itemsVersion', ITEMS_VERSION); renderItems();
 };
 
 /* ======================= Bills (history) tab ======================= */
@@ -805,7 +863,7 @@ $('#histList').addEventListener('click', e => {
   if (btn.dataset.h === 'view') openPreview(h, 'saved');
   if (btn.dataset.h === 'edit') {
     if (bill.lines.length && !confirm('Replace the bill currently being made?')) return;
-    bill = { no: h.no, date: h.date, party: { ...h.party }, lines: structuredClone(h.lines) };
+    bill = toPieces({ no: h.no, date: h.date, qtyMode: h.qtyMode, party: { ...h.party }, lines: structuredClone(h.lines) });
     saveDraft(); bindBillHeader(); renderLines(); showTab('bill');
     toast('Editing ' + h.no + ' – saving will overwrite it');
   }
@@ -864,6 +922,8 @@ $('#btnClear').onclick = () => {
 };
 
 function renderAll() { bindBillHeader(); renderLines(); renderSettings(); renderItems(); renderHistory(); renderChrome(); }
+toPieces(bill);
+upgradeItems();
 renderAll();
 
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js').catch(() => {});
